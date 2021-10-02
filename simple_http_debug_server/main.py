@@ -6,9 +6,18 @@ import os
 class RequestHandler(BaseHTTPRequestHandler):
     def _handle_request(self):
         self.send_response(200)
+
+        # it's ugly to use global variables, blame it on authors of http, need to pass class instead
+        # of object, would need to hack it using `partial` or `__call__` in place of `__init__` or
+        # something... see https://stackoverflow.com/q/21631799
+        if not DISABLE_CORS:
+            self.send_header("Access-Control-Allow-Headers", "*")
+            self.send_header("Access-Control-Allow-Origin", "*")
+
         self.end_headers()
 
-        payload = json.dumps({
+        payload = json.dumps(
+            {
                 "method": self.command,
                 "path": self.path,
                 "requestline": self.requestline,
@@ -48,6 +57,13 @@ class RequestHandler(BaseHTTPRequestHandler):
         self._handle_request()
 
 
-httpd = HTTPServer(('0.0.0.0', int(os.environ.get("HTTP_DEBUGGER_PORT", 5000))), RequestHandler)
-httpd.serve_forever()
+DISABLE_CORS = (
+    True
+    if os.environ.get("HTTP_DEBUGGER_DISABLE_CORS", None) in ["y", "yes", "true"]
+    else False
+)
 
+httpd = HTTPServer(
+    ("0.0.0.0", int(os.environ.get("HTTP_DEBUGGER_PORT", 5000))), RequestHandler
+)
+httpd.serve_forever()
